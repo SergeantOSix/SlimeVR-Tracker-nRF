@@ -350,9 +350,16 @@ int lsm_ext_write(const uint8_t addr, const uint8_t *buf, uint32_t num_bytes)
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_MASTER_CONFIG, 0x44); // WRITE_ONCE, enable I2C master
 	// Wait for transaction
 	uint8_t status = 0;
-	int64_t timeout = k_uptime_get() + 10;
-	while ((status & 0x80) && k_uptime_get() < timeout) // WR_ONCE_DONE
+	int64_t timeout = k_uptime_get() + 25;
+	do {
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_STATUS_MASTER, &status);
+
+		if ((status & 0x80) != 0) {
+			break;
+		}
+
+	} while (k_uptime_get() < timeout);
+
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_MASTER_CONFIG, 0x00); // disable I2C master
 	k_usleep(300);
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_FUNC_CFG_ACCESS, 0x00); // switch to normal registers
@@ -366,7 +373,7 @@ int lsm_ext_write(const uint8_t addr, const uint8_t *buf, uint32_t num_bytes)
 
 int lsm_ext_write_read(const uint8_t addr, const uint8_t *write_buf, size_t num_write, uint8_t *read_buf, size_t num_read)
 {
-	if (num_write != 1 || num_read < 1 || num_read > 8)
+	if (num_write != 1 || num_read < 1 || num_read > 7)
 	{
 		LOG_ERR("Unsupported write_read");
 		return -1;
@@ -384,13 +391,26 @@ int lsm_ext_write_read(const uint8_t addr, const uint8_t *write_buf, size_t num_
 	uint8_t tmp;
 	err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_OUTX_H_A, &tmp); // clear XLDA
 	uint8_t status = 0;
-	int64_t timeout = k_uptime_get() + 10;
-	while ((status & 0x01) && k_uptime_get() < timeout) // XLDA
+	int64_t timeout = k_uptime_get() + 25;
+	
+	do {
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_STATUS_REG, &status);
+		if ((status & 0x01) != 0) {
+			break;
+		}
+	} while (k_uptime_get() < timeout);
+
 	status = 0;
-	timeout = k_uptime_get() + 10;
-	while ((status & 0x01) && k_uptime_get() < timeout) // SENS_HUB_ENDOP
+	timeout = k_uptime_get() + 25;
+	
+	// SENS_HUB_ENDOP
+	do {
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_STATUS_MASTER_MAINPAGE, &status);
+		if ((status & 0x01) != 0) {
+			break;
+		}
+	} while (k_uptime_get() < timeout);
+
 	// Read data
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_FUNC_CFG_ACCESS, 0x40); // switch to sensor hub registers
 	err |= ssi_reg_write_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_MASTER_CONFIG, 0x00); // disable I2C master
@@ -422,5 +442,5 @@ const sensor_imu_t sensor_imu_lsm6dsv = {
 const sensor_ext_ssi_t sensor_ext_lsm6dsv = {
 	*lsm_ext_write,
 	*lsm_ext_write_read,
-	8
+	7
 };
