@@ -103,7 +103,7 @@ int qmc_update_odr(float time, float *actual_time)
 	}
 	else
 	{
-		MD = MD_NORMAL;
+		MD = MD_CONTINUOUS; // MD = MD_NORMAL; <-- This guy was there. I was recomended to swap it to MD_CONTINUOUS
 		ODR = 1 / time;
 	}
 
@@ -164,11 +164,32 @@ void qmc_mag_oneshot(void)
 		LOG_ERR("Communication error");
 }
 
+//I know these arn't suposed to go here I'm just testing
+static float cached_m[3] = {0.0f, 0.0f, 0.0f};
+static int64_t last_read_ms = 0;
+
 void qmc_mag_read(float m[3])
 {
+
+	// Mag ODR is 10Hz, sensor loop is ~119Hz. Every read here is a slow
+    // proxy transaction through the IMU, so only go on the bus when a new
+    // sample could possibly exist.
+    bool was_oneshot = (oneshot_trigger_time != 0);
+    int64_t now = k_uptime_get();
+    int64_t min_period = (int64_t)(last_real_time * 1000.0f) - 1;
+    if (!was_oneshot && min_period > 0 && (now - last_read_ms) < min_period)
+    {
+        m[0] = cached_m[0];
+        m[1] = cached_m[1];
+        m[2] = cached_m[2];
+        return;
+    }
+    last_read_ms = now;
+
+
 	int err = 0;
 	uint8_t status = 0; // Always check DRDY
-	int64_t timeout = (oneshot_trigger_time ? oneshot_trigger_time : k_uptime_get()) + 2; // 2ms timeout
+	int64_t timeout = (oneshot_trigger_time ? oneshot_trigger_time : k_uptime_get()) + 5; // 5ms timeout up from 2 to account for communication relay latency
 	oneshot_trigger_time = 0;
 
 	do {
@@ -199,6 +220,10 @@ void qmc_mag_read(float m[3])
 	if (err)
 		LOG_ERR("Communication error");
 	qmc_mag_process(rawData, m);
+	//Slow Down the Polling Rate
+	cached_m[0] = m[0];
+    cached_m[1] = m[1];
+    cached_m[2] = m[2];
 }
 
 void qmc_mag_process(uint8_t *raw_m, float m[3])
