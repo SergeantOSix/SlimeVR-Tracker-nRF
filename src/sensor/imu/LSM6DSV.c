@@ -351,6 +351,8 @@ int lsm_ext_write(const uint8_t addr, const uint8_t *buf, uint32_t num_bytes)
 	// Wait for transaction
 	uint8_t status = 0;
 	int64_t timeout = k_uptime_get() + 25;
+	
+	//Got this do while from meganukebmp's fix
 	do {
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_STATUS_MASTER, &status);
 
@@ -393,17 +395,8 @@ int lsm_ext_write_read(const uint8_t addr, const uint8_t *write_buf, size_t num_
 	uint8_t status = 0;
 	int64_t timeout = k_uptime_get() + 25;
 	
-	do {
-		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_STATUS_REG, &status);
-		if ((status & 0x01) != 0) {
-			break;
-		}
-	} while (k_uptime_get() < timeout);
-
-	status = 0;
-	timeout = k_uptime_get() + 25;
-	
 	// SENS_HUB_ENDOP
+	//Got this do while from meganukebmp's fix
 	do {
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_IMU, LSM6DSV_STATUS_MASTER_MAINPAGE, &status);
 		if ((status & 0x01) != 0) {

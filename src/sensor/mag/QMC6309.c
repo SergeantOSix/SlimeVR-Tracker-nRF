@@ -185,8 +185,9 @@ void qmc_mag_read(float m[3])
         return;
     }
     last_read_ms = now;
-	// uint32_t t0 = k_cycle_get_32(); // Debug
 
+	//Sorry to leave these here but I was tired of removing them and adding them again
+	// uint32_t t0 = k_cycle_get_32(); // Debug
 
 	int err = 0;
 	uint8_t status = 0; // Always check DRDY
@@ -226,7 +227,7 @@ void qmc_mag_read(float m[3])
 
 	//Debug print
 	// uint32_t t3 = k_cycle_get_32();
-	// LOG_WRN("mag: stat %uus xact %uus",
+	// LOG_INF("mag: stat %uus xact %uus",
 	// 	(uint32_t)k_cyc_to_us_floor32(t1 - t0), (uint32_t)k_cyc_to_us_floor32(t3 - t2));
 
 	if (err)
