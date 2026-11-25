@@ -185,17 +185,20 @@ void qmc_mag_read(float m[3])
         return;
     }
     last_read_ms = now;
+	// uint32_t t0 = k_cycle_get_32(); // Debug
 
 
 	int err = 0;
 	uint8_t status = 0; // Always check DRDY
-	int64_t timeout = (oneshot_trigger_time ? oneshot_trigger_time : k_uptime_get()) + 5; // 5ms timeout up from 2 to account for communication relay latency
+	int64_t timeout = (oneshot_trigger_time ? oneshot_trigger_time : k_uptime_get()) + 2;
 	oneshot_trigger_time = 0;
 
 	do {
 		err |= ssi_reg_read_byte(SENSOR_INTERFACE_DEV_MAG, QMC6309_STAT_REG, &status);
 	}
 	while((status & STAT_DATA_RDY_MASK) == 0 && k_uptime_get() <= timeout);
+
+	// uint32_t t1 = k_cycle_get_32(); // Debug
 
 	if ((status & STAT_DATA_RDY_MASK) == 0) {
 		LOG_WRN("Data not ready");
@@ -216,7 +219,16 @@ void qmc_mag_read(float m[3])
 		lastOvfl = 0;
 	}
 	uint8_t rawData[6];
+
+	// uint32_t t2 = k_cycle_get_32(); // Debug
+
 	err |= ssi_burst_read(SENSOR_INTERFACE_DEV_MAG, QMC6309_OUTX_L_REG, rawData, 6);
+
+	//Debug print
+	// uint32_t t3 = k_cycle_get_32();
+	// LOG_WRN("mag: stat %uus xact %uus",
+	// 	(uint32_t)k_cyc_to_us_floor32(t1 - t0), (uint32_t)k_cyc_to_us_floor32(t3 - t2));
+
 	if (err)
 		LOG_ERR("Communication error");
 	qmc_mag_process(rawData, m);

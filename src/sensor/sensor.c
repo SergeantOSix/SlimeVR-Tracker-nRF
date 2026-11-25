@@ -203,6 +203,14 @@ void sensor_scan_thread(void)
 
 		err = sensor_scan(); // on POR, the sensor may not be ready yet
 	}
+	if (!err && !strcmp(sensor_get_sensor_mag_name(), "None")) // Scan retry for sleepy sensors
+	{
+		k_msleep(5);
+		LOG_INF("Retrying magnetometer detection");
+		sensor_scan_clear();
+		sensor_sensor_init = false; // otherwise sensor_scan() returns 0 immediately
+		err = sensor_scan();
+	}
 	sys_interface_suspend();
 //	if (err)
 //		return err;
@@ -317,7 +325,12 @@ int sensor_scan(void)
 		// IMU may support I2CM if the magnetometer is connected through the IMU
 		int err = sensor_imu->ext_setup(SENSOR_EXT_MODE_I2CM_PROXY, NULL, 0);
 		if (!err)
-		{
+		{	
+			//Enter into the scan after starting the IMU odr
+			float a_t, g_t;
+			sensor_imu->update_odr(0.01f, 0.0f, &a_t, &g_t); // accel 100Hz so the aux master has a trigger
+			k_msleep(20);
+			
 			LOG_INF("Scanning bus for magnetometer through IMU I2CM");
 			if (sensor_mag_dev.addr > 0x80) // marked as external
 			{
